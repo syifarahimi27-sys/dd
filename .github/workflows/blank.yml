@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pendaftaran Donor Darah - Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div id="root" class="w-full max-w-lg p-4"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [step, setStep] = useState(1);
+      const [form, setForm] = useState({
+        name: "",
+        gender: "female",
+        hb: "",
+        systolic: "",
+        diastolic: ""
+      });
+      const [result, setResult] = useState(null);
+      const [donors, setDonors] = useState([]);
+
+      // Load dari localStorage saat pertama
+      useEffect(() => {
+        const saved = localStorage.getItem("donors");
+        if (saved) setDonors(JSON.parse(saved));
+      }, []);
+
+      // Simpan ke localStorage setiap kali donors berubah
+      useEffect(() => {
+        localStorage.setItem("donors", JSON.stringify(donors));
+      }, [donors]);
+
+      const handleChange = (e) => {
+        setForm({ ...form, [e.target.name]: e.target.value });
+      };
+
+      const nextStep = () => setStep(step + 1);
+
+      const checkEligibility = () => {
+        let eligible = true;
+        let reason = [];
+
+        const hb = parseFloat(form.hb);
+        if (form.gender === "female") {
+          if (hb < 12.5 || hb > 17) {
+            eligible = false;
+            reason.push("HB tidak sesuai (perempuan 12.5-17 g/dL)");
+          }
+        } else {
+          if (hb < 13.0 || hb > 17) {
+            eligible = false;
+            reason.push("HB tidak sesuai (laki-laki 13.0-17 g/dL)");
+          }
+        }
+
+        const sys = parseFloat(form.systolic);
+        const dia = parseFloat(form.diastolic);
+        if (sys < 100 || sys > 190 || dia < 50 || dia > 100) {
+          eligible = false;
+          reason.push("Tensi tidak sesuai (sistol 100-190, diastol 50-100)");
+        }
+
+        if (eligible) {
+          setResult("✅ Lulus pemeriksaan, lanjut ke pengambilan darah.");
+          setStep(4);
+          const newDonor = {
+            id: Date.now(),
+            name: form.name,
+            gender: form.gender,
+            hb: form.hb,
+            systolic: form.systolic,
+            diastolic: form.diastolic
+          };
+          setDonors([newDonor, ...donors]);
+        } else {
+          setResult("❌ Ditolak: " + reason.join(" | "));
+          setStep(99);
+        }
+      };
+
+      return (
+        <div className="bg-white shadow-xl rounded-2xl p-6 w-full">
+          <h1 className="text-2xl font-bold mb-4 text-center">Donor Darah Demo</h1>
+
+          {step === 1 && (
+            <div className="space-y-4">
+              <input
+                type="text"
+                name="name"
+                placeholder="Nama lengkap"
+                value={form.name}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+              />
+              <select
+                name="gender"
+                value={form.gender}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+              >
+                <option value="female">Perempuan</option>
+                <option value="male">Laki-laki</option>
+              </select>
+              <button
+                onClick={nextStep}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Lanjut
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <input
+                type="number"
+                name="hb"
+                placeholder="HB (g/dL)"
+                value={form.hb}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+              />
+              <button
+                onClick={nextStep}
+                className="w-full bg-blue-500 text-white px-4 py-2 rounded"
+              >
+                Periksa Tensi
+              </button>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <input
+                type="number"
+                name="systolic"
+                placeholder="Sistolik (mmHg)"
+                value={form.systolic}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+              />
+              <input
+                type="number"
+                name="diastolic"
+                placeholder="Diastolik (mmHg)"
+                value={form.diastolic}
+                onChange={handleChange}
+                className="w-full border p-2 rounded"
+              />
+              <button
+                onClick={checkEligibility}
+                className="w-full bg-green-500 text-white px-4 py-2 rounded"
+              >
+                Cek
+              </button>
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="text-green-700 text-center font-semibold">
+              {form.name}, anda memenuhi syarat donor darah. Silakan lanjut ke pengambilan darah.
+            </div>
+          )}
+
+          {step === 99 && (
+            <div className="text-red-600 text-center font-semibold">
+              {result}
+            </div>
+          )}
+
+          {donors.length > 0 && (
+            <div className="mt-6">
+              <h2 className="font-semibold">Rekap Donor Layak</h2>
+              <ul className="divide-y border rounded">
+                {donors.map(d => (
+                  <li key={d.id} className="p-2">
+                    {d.name} ({d.gender === "female" ? "Perempuan" : "Laki-laki"}) — HB: {d.hb} g/dL • Tensi: {d.systolic}/{d.diastolic} mmHg
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
